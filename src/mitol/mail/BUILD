@@ -9,13 +9,21 @@ resources(name="files", sources=[
     "py.typed",
 ])
 
+python_requirement_library(
+    name="mitol-django-common",
+    requirements=["mitol-django-common~=2.1"],
+    module_mapping={
+        "mitol-django-common": ["mitol.common"]
+    }
+)
+
 python_library(
     name="mail",
     sources=[
       "**/*.py",
     ],
     dependencies=[
-        "src/mitol/common",
+        ":mitol-django-common",
         ":mail-templates",
         ":files",
         "//:html5lib",  # pulled in dynamically by bs4

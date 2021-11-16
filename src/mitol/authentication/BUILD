@@ -4,13 +4,29 @@ resources(name="files", sources=[
     "py.typed",
 ])
 
+python_requirement_library(
+    name="mitol-django-common",
+    requirements=["mitol-django-common~=2.1"],
+    module_mapping={
+        "mitol-django-common": ["mitol.common"]
+    }
+)
+
+python_requirement_library(
+    name="mitol-django-maail",
+    requirements=["mitol-django-mail~=3.0"],
+    module_mapping={
+        "mitol-django-mail": ["mitol.mail"]
+    }
+)
+
 python_library(
     name="authentication",
     sources=[
         "**/*.py",
     ],
     dependencies=[
-        "src/mitol/common",
+        ":mitol-django-common",
         ":files",
     ],
 )

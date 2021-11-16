@@ -4,12 +4,20 @@ resources(name="files", sources=[
     "py.typed",
 ])
 
+python_requirement_library(
+    name="mitol-django-common",
+    requirements=["mitol-django-common~=2.1"],
+    module_mapping={
+        "mitol-django-common": ["mitol.common"]
+    }
+)
+
 python_library(
     name="digitalcredentials",
     sources=[
       "**/*.py"
     ],
-    dependencies=["src/mitol/common", ":files"]
+    dependencies=[":mitol-django-common", ":files"]
 )
 
 python_distribution(

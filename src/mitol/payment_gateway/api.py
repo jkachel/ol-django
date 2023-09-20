@@ -12,27 +12,19 @@ from decimal import Decimal
 from functools import wraps
 from typing import Dict, List
 
-from CyberSource import (
-    CreateSearchRequest,
-    Ptsv2paymentsClientReferenceInformation,
-    Ptsv2paymentsidcapturesOrderInformationAmountDetails,
-    Ptsv2paymentsidrefundsOrderInformation,
-    RefundApi,
-    RefundPaymentRequest,
-    SearchTransactionsApi,
-    TransactionDetailsApi,
-)
+from CyberSource import (CreateSearchRequest,
+                         Ptsv2paymentsClientReferenceInformation,
+                         Ptsv2paymentsidcapturesOrderInformationAmountDetails,
+                         Ptsv2paymentsidrefundsOrderInformation, RefundApi,
+                         RefundPaymentRequest, SearchTransactionsApi,
+                         TransactionDetailsApi)
 from django.conf import settings
 
 from mitol.common.utils.datetime import now_in_utc
-from mitol.payment_gateway.constants import (
-    ISO_8601_FORMAT,
-    MITOL_PAYMENT_GATEWAY_CYBERSOURCE,
-)
-from mitol.payment_gateway.exceptions import (
-    InvalidTransactionException,
-    RefundDuplicateException,
-)
+from mitol.payment_gateway.constants import (ISO_8601_FORMAT,
+                                             MITOL_PAYMENT_GATEWAY_CYBERSOURCE)
+from mitol.payment_gateway.exceptions import (InvalidTransactionException,
+                                              RefundDuplicateException)
 from mitol.payment_gateway.payment_utils import clean_request_data, strip_nones
 
 
@@ -67,12 +59,14 @@ class Order:
     Fields:
     - username: Purchaser username
     - ip_address: Purchaser's IP address
+    - country: Purchaser's country (ISO 3166 alpha-2 format), defaults to None
     - reference: Order reference number
     - items: List of CartItems representing the items to be purchased
     """
 
     username: str
     ip_address: str
+    country: str = ""
     reference: str
     items: List[CartItem]
 
@@ -371,13 +365,15 @@ class CyberSourcePaymentGateway(
             cart:   List of CartItems
 
         Retuns:
-            Tuple: formatted lines and the total cart value
+            Tuple: formatted lines, total cart value, total taxable value
         """
         lines = {}
         cart_total = 0
+        taxable_total = 0
 
         for i, line in enumerate(cart):
             cart_total += line.quantity * line.unitprice
+            taxable_total += line.quantity * line.taxable
 
             lines[f"item_{i}_code"] = str(line.code)
             lines[f"item_{i}_name"] = str(line.name)[:254]
@@ -386,7 +382,7 @@ class CyberSourcePaymentGateway(
             lines[f"item_{i}_tax_amount"] = str(line.taxable)
             lines[f"item_{i}_unit_price"] = str(line.unitprice)
 
-        return (lines, cart_total)
+        return (lines, cart_total, taxable_total)
 
     def _generate_cybersource_sa_signature(self, payload):
         """
@@ -443,7 +439,7 @@ class CyberSourcePaymentGateway(
         stored anywhere.
         """
 
-        (line_items, total) = self._generate_line_items(order.items)
+        (line_items, total, taxable_total) = self._generate_line_items(order.items)
 
         formatted_merchant_fields = {}
 
@@ -461,6 +457,7 @@ class CyberSourcePaymentGateway(
         payload = {
             "access_key": settings.MITOL_PAYMENT_GATEWAY_CYBERSOURCE_ACCESS_KEY,
             "amount": str(total),
+            "tax_amount": str(taxable_total),
             "consumer_id": consumer_id,
             "currency": "USD",
             "locale": "en-us",
@@ -479,6 +476,8 @@ class CyberSourcePaymentGateway(
         }
         if backoffice_post_url:
             payload["override_backoffice_post_url"] = backoffice_post_url
+        if len(order.country) > 0:
+            payload["bill_to_address_country"] = order.country
 
         signed_payload = self._sign_cybersource_payload(payload)
 

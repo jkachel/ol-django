@@ -19,7 +19,7 @@ Uncomment the section that is right (remove the HTML comment wrapper).
 
 ### Changed
 
-- Updated changelog management and versioning scheme.
+- Bumped CyberSource package to 0.0.52.
 
 <!--
 ### Deprecated
